@@ -1,15 +1,7 @@
-// This example uses an ESP32 Development Board
-// to connect to shiftr.io.
-//
-// You can check on your device after a successful
-// connection here: https://shiftr.io/try.
-//
-// by Joël Gähwiler
-// https://github.com/256dpi/arduino-mqtt
-
 #include <WiFi.h>
 #include <MQTT.h>
 
+// wifi credentials
 const char ssid[] = "VinaWLAN";
 const char pass[] = "10052018";
 
@@ -17,6 +9,43 @@ WiFiClient net;
 MQTTClient client;
 
 unsigned long lastMillis = 0;
+
+void setup() {
+  Serial.begin(115200);
+  WiFi.begin(ssid, pass);
+
+  client.begin("broker.shiftr.io", net);
+  client.onMessage(messageReceived);
+
+  connect();
+}
+
+void loop() {
+  client.loop();
+  delay(10);  // <- fixes some issues with WiFi stability
+
+  if (!client.connected()) {
+    connect();
+  }
+
+  /*
+    // publish a message roughly every second.
+    if (millis() - lastMillis > 1000) {
+      lastMillis = millis();
+      client.publish("/hello", "world");
+    }
+  */
+
+  /*
+    if (millis() - lastMillis > 5000) {
+      int sensorValue_1=random(100);  // replace with your sensor value
+      int sensorValue_2=random(100);  // replace with your sensor value
+      client.publish("temperature", String(sensorValue_1),true,1);
+      client.publish("humidity", String(sensorValue_1),true,1);
+      lastMillis = millis();
+    }
+  */
+}
 
 void connect() {
   Serial.print("checking wifi...");
@@ -33,42 +62,23 @@ void connect() {
 
   Serial.println("\nconnected!");
 
-  client.subscribe("/hello");
-  // client.unsubscribe("/hello");
+  client.subscribe("/door");
 }
 
 void messageReceived(String &topic, String &payload) {
   Serial.println("incoming: " + topic + " - " + payload);
 
-  // Note: Do not use the client in the callback to publish, subscribe or
-  // unsubscribe as it may cause deadlocks when other things arrive while
-  // sending and receiving acknowledgments. Instead, change a global variable,
-  // or push to a queue and handle it in the loop after calling `client.loop()`.
-}
-
-void setup() {
-  Serial.begin(115200);
-  WiFi.begin(ssid, pass);
-
-  // Note: Local domain names (e.g. "Computer.local" on OSX) are not supported
-  // by Arduino. You need to set the IP address directly.
-  client.begin("broker.shiftr.io", net);
-  client.onMessage(messageReceived);
-
-  connect();
-}
-
-void loop() {
-  client.loop();
-  delay(10);  // <- fixes some issues with WiFi stability
-
-  if (!client.connected()) {
-    connect();
+  if (topic == "/door") {
+    processDoorTopicMessage(payload);
   }
+}
 
-  // publish a message roughly every second.
-  if (millis() - lastMillis > 1000) {
-    lastMillis = millis();
-    client.publish("/hello", "world");
+void processDoorTopicMessage(String message) {
+  if (message.toInt() == 1) {
+    Serial.println("Door opened");
+
+  } else {
+    Serial.println("Door closed");
+
   }
 }
